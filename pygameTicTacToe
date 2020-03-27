@@ -1,0 +1,388 @@
+import pygame
+import random
+import copy
+import pyllist
+import time
+
+
+# TIC TAC TOE BACKEND GAME ________________________________________________________
+current_board = ["-", "-", "-", "-", "-", "-", "-", "-", "-"] # backend for game play
+p1 = [50, 50]
+p2 = [50, 150]
+p3 = [50, 250]
+p4 = [150, 50]
+p5 = [150, 150]
+p6 = [150, 250]
+p7 = [250, 50]
+p8 = [250, 150]
+p9 = [250, 250]
+position_board = [p1, p2, p3, p4, p5, p6, p7, p8, p9]  # coordinates for front end
+
+
+def print_board(board):
+    print(board[0] + "|" + board[1] + "|" + board[2])
+    print(board[3] + "|" + board[4] + "|" + board[5])
+    print(board[6] + "|" + board[7] + "|" + board[8])
+    print
+
+
+def check_win(board):
+    return check_win_vertical(board) or check_win_horizontal(board) or check_win_diagonal(board)
+
+
+def check_win_horizontal(board):
+    for i in [0, 3, 6]:
+        if board[i] == 'X' and board[i + 1] == 'X' and board[i + 2] == 'X':
+            return True
+        if board[i] == 'O' and board[i + 1] == 'O' and board[i + 2] == 'O':
+            return True
+    return False
+
+
+def check_win_vertical(board):
+    for i in [0, 1, 2]:
+        if board[i] == 'X' and board[i + 3] == 'X' and board[i + 6] == 'X':
+            return True
+        if board[i] == 'O' and board[i + 3] == 'O' and board[i + 6] == 'O':
+            return True
+    return False
+
+
+def check_win_diagonal(board):
+    if board[0] == 'X' and board[4] == 'X' and board[8] == 'X':
+        return True
+    if board[2] == 'X' and board[4] == 'X' and board[6] == 'X':
+        return True
+    if board[0] == 'O' and board[4] == 'O' and board[8] == 'O':
+        return True
+    if board[2] == 'O' and board[4] == 'O' and board[6] == 'O':
+        return True
+    return False
+
+
+def board_full(board):  # checks if the board is full (helps check_draw)
+    for i in range(0, 9):
+        if board[i] == "-":
+            return False
+    return True
+
+
+def check_draw(board):
+    return board_full(board) and not check_win(board)
+
+
+def place_maker(player, square, board):
+    if player == 1:  # place the marker on board
+        board[square] = 'X'
+    else:
+        board[square] = 'O'
+
+
+def player_turn(player):  # takes in which player and places a marker on board
+    square = input("player " + str(player) + " choose a square 1-9: ")
+    square = int(square) - 1  # array starts at 0
+    if not isinstance(square, int) or square > 8 or square < 0:  # check input is valid
+        print("input not an int between 1 and 9")
+        player_turn(player)
+        return
+    if not legal_move(square, current_board):  # check move is legal
+        print("square already taken!")
+        player_turn(player)
+        return
+    place_maker(player, square, current_board)
+    draw_o_x(position_board[square], player)
+
+
+def legal_move(square, board):
+    if board[square] == "X" or board[square] == "O":  # square is taken
+        return False
+    return True
+
+
+def random_square():
+    return random.randint(0, 8)
+
+
+def computer_random_turn(player):
+    square = random_square()
+    if current_board[square] == "X" or current_board[square] == "O":  # check square isn't taken
+        computer_random_turn(player)  # try again if it is
+        return
+    place_maker(player, square, current_board)
+    draw_o_x(position_board[square], player)
+
+
+def computer_smart_turn(player):
+    # check if any moves win and play those TODO: clean this up ...
+    for i in range(0, 9):
+        if not legal_move(i, current_board):  # check if it is legal
+            continue
+        board_copy = copy.deepcopy(current_board)  # copy board fresh each time
+        place_maker(player, i, board_copy)
+        if check_win(board_copy):
+            place_maker(player, i, current_board)
+            draw_o_x(position_board[i], player)
+            return
+    # check if the opponent can play any moves that win and block those
+    for i in range(0, 9):
+        if not legal_move(i, current_board):  # check if it is legal
+            continue
+        board_copy = copy.deepcopy(current_board)  # copy board fresh each time
+        place_maker(change_turn(player), i, board_copy)
+        if check_win(board_copy):
+            place_maker(player, i, current_board)
+            draw_o_x(position_board[i], player)
+            return
+    # find available squares
+    corners = pyllist.sllist()  # list all available corner spaces (to choose randomly from)
+    edges = pyllist.sllist()  # list all available edge spaces (to choose randomly from)
+    for i in range(0, 9):
+        if not legal_move(i, current_board):
+            continue
+        if i == 4:  # middle
+            place_maker(player, 4, current_board)
+            draw_o_x(position_board[4], player)
+            return
+        if i == 0 or i == 2 or i == 6 or i == 8:  # corners
+            corners.append(i)
+        if i == 1 or i == 3 or i == 5 or i == 7:  # edges
+            edges.append(i)
+    # TODO
+    if corners.size != 0:
+        square = random.choice(corners)
+    else:
+        square = random.choice(edges)
+    place_maker(player, square, current_board)
+    draw_o_x(position_board[square], player)
+    return
+
+
+def change_turn(player):  # changes 1 to 2 or vise versa
+    if player == 1:
+        return 2
+    else:
+        return 1
+
+
+def two_player_game():
+    player = 2
+    pygame.display.flip()  # gives player reference of squares
+    while 1 > 0:
+        if check_draw(current_board):
+            tie_message()
+            return True
+        if check_win(current_board):
+            win_message(player)
+            return True
+        player = change_turn(player)  # swap to other player
+        player_turn(player)  # player makes a move
+        pygame.display.flip()  # display the updated board
+
+
+def computer_random_game(player_first=True):
+    player = 1
+    pygame.display.flip()  # gives player reference of squares
+    if player_first:
+        while 1 > 0:
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(3)  # 3 means computer
+                return True
+            player_turn(player)
+            pygame.display.flip()
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(player)
+                return True
+            player = change_turn(player)
+            computer_random_turn(player)
+            time.sleep(0.75)
+            pygame.display.flip()
+            player = change_turn(player)
+    else:
+        while 1 > 0:
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(player)
+                return True
+            computer_random_turn(player)
+            time.sleep(0.75)
+            pygame.display.flip()
+
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(3)
+                return True
+            player = change_turn(player)
+            player_turn(player)
+            pygame.display.flip()
+            player = change_turn(player)
+
+
+def smart_computer_game(player_first=True):
+    """
+    :param player_first: True if player goes first
+    :return: True when game is over
+    """
+    if player_first:
+        run = True
+        while run:  # run game until a tie or draw
+            # PLAYER TURN___________________
+            player_turn(0)
+            pygame.display.flip()
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(0)
+                return True
+            # COMPUTER TURN_________________
+            computer_smart_turn(1)
+            time.sleep(0.75)
+            pygame.display.flip()
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):  # 3 is code for "computer wins" message
+                win_message(3)
+                return True
+    else:
+        run = True
+        while run:
+            # COMPUTER TURN_________________
+            computer_smart_turn(0)
+            time.sleep(0.75)
+            pygame.display.flip()
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):  # 3 is code for "computer wins" message
+                win_message(3)
+                return True
+            # PLAYER TURN___________________
+            player_turn(1)
+            pygame.display.flip()
+            if check_draw(current_board):
+                tie_message()
+                return True
+            if check_win(current_board):
+                win_message(0)
+                return True
+
+
+# FRONT END DISPLAYING / PLAYING THE GAME __________________________________________
+# Define some colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+BLUE = (0, 0, 255)
+RED = (255, 0, 0)
+
+
+def draw_o_x(position, player):
+    # player1: X, player0: O
+    if player == 1:
+        draw_x(position)
+    else:
+        draw_o(position)
+
+
+def draw_x(position):
+    x = position[1]
+    y = position[0]
+    pygame.draw.line(screen, BLUE, [x-30, y-30], [x+30, y+30], 5)
+    pygame.draw.line(screen, BLUE, [x-30, y+30], [x+30, y-30], 5)
+
+
+def draw_o(position):
+    x = position[1]
+    y = position[0]
+    pygame.draw.ellipse(screen, RED, [x-30, y-30, 60, 60], 5)
+    # still don't really know how this works, first 2 have to do with coordinates, second 2 deal with shape
+
+
+def win_message(player):
+    pygame.draw.rect(screen, BLACK, [20, 120, 260, 60], 3)  # first 2 top left corner, 2nd 2 width, height
+    screen.fill(WHITE, [20, 120, 260, 60])
+    if player == 3:
+        message = "Computer Wins!"
+    elif player == 0:
+        message = "You win!"
+    else:
+        message = "Player " + str(player) + " Wins!"
+    text = font.render(message, True, BLACK)
+    screen.blit(text, [90, 140])
+
+
+def tie_message():
+    pygame.draw.rect(screen, BLACK, [20, 120, 260, 60], 3)  # first 2 top left corner, 2nd 2 width, height
+    screen.fill(WHITE, [20, 120, 260, 60])
+    message = "Tie"
+    text = font.render(message, True, BLACK)
+    screen.blit(text, [90, 140])
+
+
+# Initialize the game engine________________________________________________
+pygame.init()
+# Initialize game window
+size = (300, 300)
+screen = pygame.display.set_mode(size)
+pygame.display.set_caption("Tic Tac Toe")
+screen.fill(WHITE)
+# Init other settings
+font = pygame.font.SysFont('Calibri', 25, True, False)
+clock = pygame.time.Clock()
+
+# draw grid lines
+pygame.draw.line(screen, BLACK, [20, 100], [280, 100], 5)
+pygame.draw.line(screen, BLACK, [20, 200], [280, 200], 5)
+pygame.draw.line(screen, BLACK, [100, 20], [100, 280], 5)
+pygame.draw.line(screen, BLACK, [200, 20], [200, 280], 5)
+
+
+# PLAY THE GAME _______________________________________________________________
+def play_game(game_type, player_first=True):
+    """
+    :param game_type: 1: pvp, 2: random comp. 3. smart computer
+    :param player_first: True: human first, False: comp first (for comp games)
+    :return: void
+    """
+    done = False
+    game_over = False
+    if game_type == 1:
+        while not done:
+            for event in pygame.event.get():  # User did something
+                if event.type == pygame.QUIT:  # If user clicked close
+                    done = True  # exit while loop
+            pygame.display.flip()
+            if not game_over:  # stops this once the game is over
+                game_over = two_player_game()
+            clock.tick(1)  # limits while loop to 60x per second, saves CPU?
+    if game_type == 2:
+        while not done:
+            for event in pygame.event.get():  # User did something
+                if event.type == pygame.QUIT:  # If user clicked close
+                    done = True  # exit while loop
+            pygame.display.flip()
+            if not game_over:  # stops this once the game is over
+                game_over = computer_random_game(player_first)
+            clock.tick(1)  # limits while loop to 60x per second, saves CPU?
+    if game_type == 3:
+        while not done:
+            for event in pygame.event.get():  # User did something
+                if event.type == pygame.QUIT:  # If user clicked close
+                    done = True  # exit while loop
+            pygame.display.flip()
+            if not game_over:  # stops this once the game is over
+                game_over = smart_computer_game(player_first)
+            clock.tick(1)  # limits while loop to 60x per second, saves CPU?
+
+
+play_game(3)
